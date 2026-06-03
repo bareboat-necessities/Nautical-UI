@@ -2,46 +2,316 @@ name: build
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   linux:
-    runs-on: ubuntu-latest
+    name: linux (${{ matrix.artifact_arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact_arch: amd64
+            runner: ubuntu-latest
+          - artifact_arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+
+      - name: Compute artifact tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "ARTIFACT_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+            echo "DEB_VERSION=${GITHUB_REF_NAME#v}-1" >> "$GITHUB_ENV"
+          else
+            echo "ARTIFACT_TAG=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+            echo "DEB_VERSION=0.0.0+sha${GITHUB_SHA::7}-1" >> "$GITHUB_ENV"
+          fi
+          echo "DEB_ARCH=$(dpkg --print-architecture)" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y cmake ninja-build pkg-config libgtkmm-4.0-dev
-      - name: Configure
-        run: cmake --preset linux-debug
-      - name: Build
-        run: cmake --build --preset linux-debug
-      - name: Test
-        run: ctest --test-dir build/linux-debug --output-on-failure
+          sudo apt-get update
+          sudo apt-get install -y \
+            apt-utils \
+            build-essential \
+            cmake \
+            dpkg-dev \
+            fakeroot \
+            libgtkmm-4.0-dev \
+            ninja-build \
+            pkg-config
 
-  windows-msys2:
+      - name: Configure (release)
+        run: cmake --preset linux-release
+
+      - name: Build (release)
+        run: cmake --build --preset linux-release --parallel
+
+      - name: Test (release)
+        run: ctest --preset linux-release
+
+      - name: Package tarball
+        run: |
+          set -euo pipefail
+
+          PKG="nautical-ui"
+          BIN="helm-ui"
+          DIST="dist/${PKG}"
+
+          rm -rf dist
+          install -d "$DIST/bin" "$DIST/share"
+          install -m 0755 "build/linux-release/$BIN" "$DIST/bin/$BIN"
+          cp -a assets "$DIST/share/helm-ui"
+          [ -f README.md ] && install -m 0644 README.md "$DIST/README.md" || true
+          [ -f LICENSE ] && install -m 0644 LICENSE "$DIST/LICENSE" || true
+
+          tar -czf "${PKG}-${ARTIFACT_TAG}-linux-${{ matrix.artifact_arch }}.tar.gz" -C dist "$PKG"
+
+      - name: Package Debian .deb
+        run: |
+          set -euo pipefail
+
+          PKG="nautical-ui"
+          BIN="helm-ui"
+          STAGE="debian/${PKG}"
+
+          rm -rf debian
+          install -d \
+            "$STAGE/DEBIAN" \
+            "$STAGE/usr/bin" \
+            "$STAGE/usr/share/doc/$PKG" \
+            "$STAGE/usr/share/helm-ui"
+
+          install -m 0755 "build/linux-release/$BIN" "$STAGE/usr/bin/$BIN"
+          cp -a assets/. "$STAGE/usr/share/helm-ui/"
+          [ -f README.md ] && install -m 0644 README.md "$STAGE/usr/share/doc/$PKG/README.md" || true
+          [ -f LICENSE ] && install -m 0644 LICENSE "$STAGE/usr/share/doc/$PKG/copyright" || true
+
+          SIZE_KB="$(du -sk "$STAGE/usr" | awk '{print $1}')"
+
+          cat > debian/control <<EOF_CONTROL
+          Source: $PKG
+          Section: utils
+          Priority: optional
+          Maintainer: ${GITHUB_REPOSITORY} <noreply@github.com>
+          Standards-Version: 4.6.2
+
+          Package: $PKG
+          Architecture: any
+          Depends: \${shlibs:Depends}, \${misc:Depends}
+          Description: Nautical helm UI
+           GTK4/gtkmm helm UI for marine navigation dashboards.
+          EOF_CONTROL
+
+          DEPENDS="$(dpkg-shlibdeps --ignore-missing-info -O \
+            -S"$STAGE" \
+            -e "$STAGE/usr/bin/$BIN" | sed -n 's/^shlibs:Depends=//p')"
+          [ -n "$DEPENDS" ] || DEPENDS="libc6"
+
+          cat > "$STAGE/DEBIAN/control" <<EOF_CONTROL
+          Package: $PKG
+          Version: ${DEB_VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: ${DEB_ARCH}
+          Maintainer: ${GITHUB_REPOSITORY} <noreply@github.com>
+          Depends: $DEPENDS
+          Installed-Size: $SIZE_KB
+          Homepage: https://github.com/${GITHUB_REPOSITORY}
+          Description: Nautical helm UI
+           GTK4/gtkmm helm UI for marine navigation dashboards.
+          EOF_CONTROL
+
+          fakeroot dpkg-deb --build "$STAGE" "${PKG}_${DEB_VERSION}_${DEB_ARCH}.deb"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.artifact_arch }}
+          path: |
+            nautical-ui-${{ env.ARTIFACT_TAG }}-linux-${{ matrix.artifact_arch }}.tar.gz
+            nautical-ui_${{ env.DEB_VERSION }}_${{ env.DEB_ARCH }}.deb
+
+  windows-x64:
+    name: windows (x64)
     runs-on: windows-latest
     defaults:
       run:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
-      - uses: msys2/setup-msys2@v2
+
+      - name: Set up MSYS2 (UCRT64)
+        uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
           install: >-
             git
-            mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-gtkmm-4.0
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-pkgconf
-            mingw-w64-ucrt-x86_64-gtkmm-4.0
-      - name: Configure
-        run: cmake --preset windows-msys2-ucrt64-debug
-      - name: Build
-        run: cmake --build --preset windows-msys2-ucrt64-debug
-      - name: Test
-        run: ctest --test-dir build/windows-ucrt64-debug --output-on-failure
+            mingw-w64-ucrt-x86_64-python
+            p7zip
+
+      - name: Compute artifact tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "ARTIFACT_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          else
+            echo "ARTIFACT_TAG=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configure (release)
+        run: cmake --preset windows-msys2-ucrt64-release
+
+      - name: Build (release)
+        run: cmake --build --preset windows-msys2-ucrt64-release --parallel
+
+      - name: Test (release)
+        run: ctest --preset windows-msys2-ucrt64-release
+
+      - name: Package portable zip
+        run: |
+          set -euo pipefail
+
+          PKG="nautical-ui"
+          BIN="helm-ui"
+          UCRT_PREFIX="/ucrt64"
+
+          rm -rf dist
+          install -d dist/share dist/lib dist/etc
+          cp -f "build/windows-ucrt64-release/${BIN}.exe" "dist/${BIN}.exe"
+          cp -a assets dist/share/helm-ui
+          [ -f README.md ] && cp -f README.md dist/README.md || true
+          [ -f LICENSE ] && cp -f LICENSE dist/LICENSE || true
+
+          copy_deps_recursive() {
+            local changed=1
+            while [[ "$changed" -eq 1 ]]; do
+              changed=0
+              while IFS= read -r dll; do
+                local name
+                name="$(basename "$dll")"
+                if [[ ! -f "dist/$name" ]]; then
+                  cp -f "$dll" "dist/$name"
+                  changed=1
+                fi
+              done < <(
+                find dist -maxdepth 1 -type f \( -name '*.exe' -o -name '*.dll' \) -print0 |
+                  xargs -0 -r ldd 2>/dev/null |
+                  awk '{print $3}' |
+                  grep -E "^${UCRT_PREFIX}/bin/.*\.dll$" |
+                  sort -u
+              )
+            done
+          }
+          copy_deps_recursive
+
+          # GLib spawn helpers and GDBus avoid accidental pickup from Git Bash/Cygwin.
+          cp -f "${UCRT_PREFIX}/bin/gdbus.exe" dist/ || true
+          cp -f "${UCRT_PREFIX}/bin/gspawn-win64-helper.exe" dist/ || true
+          cp -f "${UCRT_PREFIX}/bin/gspawn-win64-helper-console.exe" dist/ || true
+          copy_deps_recursive
+
+          # Bundle GTK/GLib runtime data needed by a portable GTK4/gtkmm application.
+          mkdir -p dist/share/glib-2.0/schemas
+          cp -r "${UCRT_PREFIX}/share/glib-2.0/schemas/"* dist/share/glib-2.0/schemas/
+          "${UCRT_PREFIX}/bin/glib-compile-schemas" dist/share/glib-2.0/schemas
+
+          mkdir -p dist/lib/gdk-pixbuf-2.0/2.10.0/loaders
+          cp -r "${UCRT_PREFIX}/lib/gdk-pixbuf-2.0/2.10.0/loaders/"* dist/lib/gdk-pixbuf-2.0/2.10.0/loaders/
+          "${UCRT_PREFIX}/bin/gdk-pixbuf-query-loaders" > dist/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+
+          [ -d "${UCRT_PREFIX}/lib/gtk-4.0" ] && cp -r "${UCRT_PREFIX}/lib/gtk-4.0" dist/lib/ || true
+          [ -d "${UCRT_PREFIX}/share/icons" ] && cp -r "${UCRT_PREFIX}/share/icons" dist/share/ || true
+          [ -d "${UCRT_PREFIX}/share/themes" ] && cp -r "${UCRT_PREFIX}/share/themes" dist/share/ || true
+
+          cat > dist/run.bat <<'EOF_RUN'
+          @echo off
+          setlocal
+          set "DIR=%~dp0"
+
+          rem Keep PATH local so GTK/GLib loads bundled DLLs first.
+          set "PATH=%DIR%;%SystemRoot%\System32;%SystemRoot%"
+
+          set "APPBASE=%LOCALAPPDATA%\nautical-ui"
+          set "HOME=%APPBASE%"
+          set "XDG_CACHE_HOME=%APPBASE%\cache"
+          mkdir "%XDG_CACHE_HOME%" 2>nul
+
+          set "GSETTINGS_SCHEMA_DIR=%DIR%share\glib-2.0\schemas"
+          set "GDK_PIXBUF_MODULE_FILE=%DIR%lib\gdk-pixbuf-2.0\2.10.0\loaders.cache"
+          set "GDK_PIXBUF_MODULEDIR=%DIR%lib\gdk-pixbuf-2.0\2.10.0\loaders"
+
+          "%DIR%helm-ui.exe" %*
+          endlocal
+          EOF_RUN
+
+          7z a "${PKG}-${ARTIFACT_TAG}-windows-x64.zip" ./dist/*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: nautical-ui-${{ env.ARTIFACT_TAG }}-windows-x64.zip
+
+  publish:
+    name: publish GitHub Release and flat APT repo
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows-x64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Build flat APT repository (Packages/Release)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y apt-utils dpkg-dev
+
+          rm -rf apt-repo
+          mkdir -p apt-repo
+
+          cp -v release-assets/linux-amd64/*.deb apt-repo/
+          cp -v release-assets/linux-arm64/*.deb apt-repo/
+
+          pushd apt-repo >/dev/null
+          dpkg-scanpackages --multiversion . /dev/null > Packages
+          gzip -9c Packages > Packages.gz
+          apt-ftparchive release . > Release
+          popd >/dev/null
+
+      - name: Publish versioned release (tag v*)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/linux-amd64/*.tar.gz
+            release-assets/linux-arm64/*.tar.gz
+            release-assets/windows-x64/*.zip
+            apt-repo/*
+
+      - name: Publish/update stable APT release (tag apt)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apt
+          name: APT repository (stable)
+          target_commitish: ${{ github.sha }}
+          overwrite_files: true
+          files: |
+            apt-repo/*
