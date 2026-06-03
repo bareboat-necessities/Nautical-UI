@@ -21,8 +21,8 @@ Color state_color(IconState state, const Theme& t) {
 }
 
 void stroke_round(const Cairo::RefPtr<Cairo::Context>& cr) {
-    cr->set_line_cap(Cairo::LineCap::ROUND);
-    cr->set_line_join(Cairo::LineJoin::ROUND);
+    cr->set_line_cap(Cairo::Context::LineCap::ROUND);
+    cr->set_line_join(Cairo::Context::LineJoin::ROUND);
 }
 
 void draw_boat_triangle(const Cairo::RefPtr<Cairo::Context>& cr, double cx, double cy, double s) {

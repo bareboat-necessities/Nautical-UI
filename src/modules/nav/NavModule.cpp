@@ -28,7 +28,7 @@ void text(const Cairo::RefPtr<Cairo::Context>& cr, const std::string& s, double 
 
 void rounded_rect(const Cairo::RefPtr<Cairo::Context>& cr, double x, double y, double w, double h, double r) {
     const double rr = std::min({r, w * 0.5, h * 0.5});
-    cr->new_sub_path();
+    cr->begin_new_sub_path();
     cr->arc(x + w - rr, y + rr, rr, -pi / 2.0, 0.0);
     cr->arc(x + w - rr, y + h - rr, rr, 0.0, pi / 2.0);
     cr->arc(x + rr, y + h - rr, rr, pi / 2.0, pi);
