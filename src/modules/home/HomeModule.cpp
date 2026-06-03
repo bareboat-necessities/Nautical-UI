@@ -123,7 +123,7 @@ void HomeCanvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int width, int
     draw_text(cr, std::to_string(snapshot_.ais.targets.value) + " targets", 54 + tile_w * 2.0, tile_y + 66, 22);
 }
 
-HomeModule::HomeModule() : root_(Gtk::Orientation::VERTICAL, 6), title_("HELM OVERVIEW"), subtitle_("Phase 1 shell using dummy telemetry") {
+HomeModule::HomeModule() : root_(Gtk::Orientation::VERTICAL, 6), title_("HELM OVERVIEW"), subtitle_("Primary helm overview with compass, wind, anchor, AIS, and live NMEA-ready telemetry") {
     root_.set_margin_top(10);
     root_.set_margin_bottom(10);
     root_.set_margin_start(10);

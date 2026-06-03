@@ -2,23 +2,28 @@
 
 Modern C++/GTK4 cockpit helm UI starter project for a 10 inch sailboat touchscreen.
 
-This repository implements **Phase 0** and **Phase 1** of the plan:
+This repository implements the starter phases of the plan:
 
 - Phase 0: visual baseline, module boundaries, safety hierarchy, and architecture notes.
 - Phase 1: compilable GTK4/gtkmm shell skeleton with dummy telemetry, scalable Cairo icons, screen modules, and the 4x PNG concept images stored as reference assets.
+- Phase 2/3 overlays: telemetry store hardening and compact live NMEA 0183 TCP input.
+- Phase 4 overlay: first usable cockpit screens for Home, Nav, Sail, Anchor, AIS, Systems, and Alarms.
 
 The 4x PNG files in `assets/reference/` are **visual references only**. The running UI is drawn with GTK widgets and scalable Cairo primitives; no icons are cropped from the PNGs.
 
 ## Current screens
 
-The phase 1 shell includes these modules:
+The current shell includes these primary modules:
 
 - Home
+- Nav
+- Sail / Wind
 - Anchor
 - AIS
 - Systems
-- Bilge
-- Windlass
+- Alarms
+
+Bilge and Windlass modules are also compiled and available through the module registry for Systems integration and future direct navigation.
 
 The center area behaves as an app viewport. The top/bottom bars and side sensor tiles stay persistent while the active module changes.
 
@@ -118,4 +123,4 @@ HELM_UI_NMEA_SOURCE=tcp-nmea0183://127.0.0.1:10110 ./helm-ui
 
 The NMEA design is intentionally compact: one tokenizer, one parser entry point, and private helpers in `src/nmea/Nmea0183.cpp`. There are no message-type decoder headers.
 
-See `docs/PHASE2_PHASE3.md` for details.
+See `docs/PHASE2_PHASE3.md` and `docs/PHASE4.md` for details.

@@ -25,11 +25,14 @@ add_executable(helm-ui
     src/telemetry/TelemetryStore.cpp
     src/telemetry/Format.cpp
     src/modules/home/HomeModule.cpp
+    src/modules/nav/NavModule.cpp
+    src/modules/sail/SailModule.cpp
     src/modules/anchor/AnchorModule.cpp
     src/modules/ais/AisModule.cpp
     src/modules/bilge/BilgeModule.cpp
     src/modules/windlass/WindlassModule.cpp
     src/modules/systems/SystemsModule.cpp
+    src/modules/alarms/AlarmModule.cpp
     src/nmea/Nmea0183.cpp
     src/nmea/NmeaTcpClient.cpp
 )

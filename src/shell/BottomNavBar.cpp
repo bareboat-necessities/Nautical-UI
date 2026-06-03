@@ -9,11 +9,12 @@ BottomNavBar::BottomNavBar() : Gtk::Box(Gtk::Orientation::HORIZONTAL, 2) {
     set_margin_bottom(8);
 
     add_button("home", "HOME");
+    add_button("nav", "NAV");
+    add_button("sail", "SAIL");
     add_button("anchor", "ANCHOR");
     add_button("ais", "AIS");
     add_button("systems", "SYSTEMS");
-    add_button("bilge", "BILGE");
-    add_button("windlass", "WINDLASS");
+    add_button("alarms", "ALARMS");
 }
 
 void BottomNavBar::set_on_selected(std::function<void(std::string)> callback) {

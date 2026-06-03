@@ -45,11 +45,17 @@ Next:
 
 ## Phase 4 — First usable cockpit screens
 
+Completed in overlay.
+
 - Home with compass/wind/depth overview.
-- Anchor watch with real GPS distance/radius logic.
-- AIS list/radar placeholder using real target data.
-- Bilge status.
+- Nav tactical placeholder using live GPS/COG/SOG/depth.
+- Sail/wind screen with wind dial, target bands, VMG, and simple performance.
+- Anchor watch visual swing circle.
+- AIS radar/threat placeholder.
+- Systems status cards.
+- Bilge status screen.
 - Windlass locked control screen.
+- Alarm center for safety-critical status.
 
 ## Phase 5 — AIS target engine
 
@@ -121,3 +127,11 @@ Next:
 - Kept the compact parser rule: one tokenizer and one parser function branching by formatter.
 - Added `--source tcp-nmea0183://host:port`, `--nmea-tcp=host:port`, and `HELM_UI_NMEA_SOURCE`.
 - Added parser/store tests and fixed longitude parsing for `dddmm.mmmm`.
+
+
+## Phase 4 completed in overlay
+
+- Added NAV, SAIL, and ALARMS modules.
+- Updated bottom navigation to `HOME | NAV | SAIL | ANCHOR | AIS | SYSTEMS | ALARMS`.
+- Kept bilge and windlass as compiled modules, primarily reached through Systems until a MORE drawer is added.
+- Added alarm cards for depth, AIS, anchor, bilge, windlass, battery, and NMEA link state.

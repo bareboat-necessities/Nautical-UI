@@ -100,6 +100,43 @@ window {
   background: #8d1f1f;
   color: #ffffff;
 }
+
+.control-warning {
+  background: #5b4514;
+  color: #ffffff;
+}
+.alarm-card {
+  padding: 12px;
+  border-radius: 16px;
+  background: #0a1b28;
+  border: 1px solid #2f5f7f;
+}
+.alarm-critical {
+  border-color: #ff3b30;
+  background: #2a0d13;
+}
+.alarm-warning {
+  border-color: #ffd34a;
+  background: #241d0a;
+}
+.alarm-info {
+  border-color: #2f5f7f;
+  background: #0a1b28;
+}
+.alarm-severity {
+  color: #ffd34a;
+  font-size: 16px;
+  font-weight: 900;
+}
+.alarm-title {
+  color: #f2f7ff;
+  font-size: 20px;
+  font-weight: 900;
+}
+.alarm-detail {
+  color: #91a9b8;
+  font-size: 14px;
+}
 )CSS");
 
     auto display = Gdk::Display::get_default();

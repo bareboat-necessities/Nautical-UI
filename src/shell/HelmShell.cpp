@@ -1,8 +1,11 @@
 #include "shell/HelmShell.h"
 
 #include "modules/ais/AisModule.h"
+#include "modules/alarms/AlarmModule.h"
 #include "modules/anchor/AnchorModule.h"
 #include "modules/bilge/BilgeModule.h"
+#include "modules/nav/NavModule.h"
+#include "modules/sail/SailModule.h"
 #include "modules/home/HomeModule.h"
 #include "modules/systems/SystemsModule.h"
 #include "modules/windlass/WindlassModule.h"
@@ -56,11 +59,14 @@ HelmShell::HelmShell()
     right_tiles_.append(windlass_tile_);
 
     add_module<modules::home::HomeModule>();
+    add_module<modules::nav::NavModule>();
+    add_module<modules::sail::SailModule>();
     add_module<modules::anchor::AnchorModule>();
     add_module<modules::ais::AisModule>();
     add_module<modules::systems::SystemsModule>();
     add_module<modules::bilge::BilgeModule>();
     add_module<modules::windlass::WindlassModule>();
+    add_module<modules::alarms::AlarmModule>();
 
     content_row_.append(left_tiles_);
     content_row_.append(viewport_);
@@ -139,7 +145,8 @@ void HelmShell::update(const telemetry::TelemetrySnapshot& snapshot) {
 
     windlass_tile_.set_value(telemetry::format::windlass_status(snapshot.windlass.status));
     windlass_tile_.set_subtitle(format_or_dash(snapshot.windlass.chain_deployed_m, [](double v) { return telemetry::format::meters(v, 0); }));
-    windlass_tile_.set_state(snapshot.windlass.status == telemetry::WindlassStatus::Locked ? graphics::IconState::Warning : graphics::IconState::Danger);
+    windlass_tile_.set_state(snapshot.windlass.status == telemetry::WindlassStatus::Locked ? graphics::IconState::Ok :
+                              (snapshot.windlass.status == telemetry::WindlassStatus::Fault ? graphics::IconState::Danger : graphics::IconState::Warning));
 
     for (auto& module : modules_) {
         module->on_telemetry(snapshot);
