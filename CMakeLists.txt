@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(HELM_UI_BUILD_TESTS "Build unit tests" ON)
 
 find_package(PkgConfig REQUIRED)
+find_package(Threads REQUIRED)
 pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-4.0)
 
 add_executable(helm-ui
@@ -30,10 +31,14 @@ add_executable(helm-ui
     src/modules/windlass/WindlassModule.cpp
     src/modules/systems/SystemsModule.cpp
     src/nmea/Nmea0183.cpp
+    src/nmea/NmeaTcpClient.cpp
 )
 
 target_include_directories(helm-ui PRIVATE src)
-target_link_libraries(helm-ui PRIVATE PkgConfig::GTKMM)
+target_link_libraries(helm-ui PRIVATE PkgConfig::GTKMM Threads::Threads)
+if(WIN32)
+    target_link_libraries(helm-ui PRIVATE ws2_32)
+endif()
 
 if(MSVC)
     target_compile_options(helm-ui PRIVATE /W4 /permissive-)
@@ -57,4 +62,29 @@ if(HELM_UI_BUILD_TESTS)
         target_compile_options(nmea-tokenizer-test PRIVATE -Wall -Wextra -Wpedantic)
     endif()
     add_test(NAME nmea-tokenizer-test COMMAND nmea-tokenizer-test)
+
+    add_executable(nmea-parser-test
+        tests/nmea_parser_test.cpp
+        src/nmea/Nmea0183.cpp
+    )
+    target_include_directories(nmea-parser-test PRIVATE src)
+    if(MSVC)
+        target_compile_options(nmea-parser-test PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(nmea-parser-test PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME nmea-parser-test COMMAND nmea-parser-test)
+
+    add_executable(telemetry-store-test
+        tests/telemetry_store_test.cpp
+        src/telemetry/TelemetryStore.cpp
+        src/nmea/Nmea0183.cpp
+    )
+    target_include_directories(telemetry-store-test PRIVATE src)
+    if(MSVC)
+        target_compile_options(telemetry-store-test PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(telemetry-store-test PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME telemetry-store-test COMMAND telemetry-store-test)
 endif()

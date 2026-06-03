@@ -31,6 +31,17 @@ std::string local_time_hhmm() {
     return os.str();
 }
 
+std::string nmea_status_label(telemetry::LinkStatus status) {
+    switch (status) {
+        case telemetry::LinkStatus::Disabled: return "NMEA DEMO";
+        case telemetry::LinkStatus::Connecting: return "NMEA CONN";
+        case telemetry::LinkStatus::Live: return "NMEA LIVE";
+        case telemetry::LinkStatus::Stale: return "NMEA STALE";
+        case telemetry::LinkStatus::Error: return "NMEA ERROR";
+    }
+    return "NMEA ?";
+}
+
 } // namespace
 
 TopStatusBar::TopStatusBar()
@@ -49,13 +60,16 @@ TopStatusBar::TopStatusBar()
 }
 
 void TopStatusBar::update(const telemetry::TelemetrySnapshot& snapshot) {
-    gps_.set_text(snapshot.nav.latitude_deg.has_value() ? "GPS OK" : "GPS WAIT");
-    nmea_.set_text("NMEA DEMO");
-    const int danger = snapshot.ais.danger_targets.value;
+    const bool gps_ok = snapshot.nav.latitude_deg.has_value() && snapshot.nav.latitude_deg.quality != telemetry::SensorQuality::Stale;
+    gps_.set_text(gps_ok ? "GPS OK" : "GPS WAIT");
+    nmea_.set_text(nmea_status_label(snapshot.sources.nmea0183.status));
+    const int danger = snapshot.ais.danger_targets.has_value() ? snapshot.ais.danger_targets.value : 0;
     ais_.set_text(danger > 0 ? "AIS DANGER" : "AIS CLEAR");
     anchor_.set_text("⚓ " + telemetry::format::anchor_status(snapshot.anchor.status));
     bilge_.set_text("BILGE " + telemetry::format::bilge_status(snapshot.bilge.status));
-    battery_.set_text(telemetry::format::volts(snapshot.electrical.house_voltage_v.value));
+    battery_.set_text(snapshot.electrical.house_voltage_v.has_value()
+                          ? telemetry::format::volts(snapshot.electrical.house_voltage_v.value)
+                          : "HOUSE --");
     clock_.set_text(local_time_hhmm());
 }
 

@@ -106,3 +106,18 @@ Next:
 - Day/night theme.
 - GitHub Actions.
 - Installer packaging.
+
+
+## Phase 2 completed in overlay
+
+- `TelemetryStore` now has incremental NMEA update application.
+- Every major sensor value keeps a latest value, update timestamp, source, and quality state.
+- Central stale/missing detection was added.
+- UI tiles now distinguish missing/stale values from live values.
+
+## Phase 3 completed in overlay
+
+- Added `NmeaTcpClient` for background TCP NMEA 0183 input.
+- Kept the compact parser rule: one tokenizer and one parser function branching by formatter.
+- Added `--source tcp-nmea0183://host:port`, `--nmea-tcp=host:port`, and `HELM_UI_NMEA_SOURCE`.
+- Added parser/store tests and fixed longitude parsing for `dddmm.mmmm`.

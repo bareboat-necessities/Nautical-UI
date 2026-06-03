@@ -70,9 +70,14 @@ bool parse_lat_lon(std::string_view value, std::string_view hemi, bool latitude,
     double raw = 0.0;
     if (!parse_double(value, raw) || hemi.empty()) return false;
 
-    const double deg_width = latitude ? 100.0 : 1000.0;
-    const int degrees = static_cast<int>(raw / deg_width);
-    const double minutes = raw - static_cast<double>(degrees) * deg_width;
+    // NMEA uses ddmm.mmmm for latitude and dddmm.mmmm for longitude.
+    // In both cases degrees are floor(raw / 100); the final two integer digits are minutes.
+    const int degrees = static_cast<int>(raw / 100.0);
+    const double minutes = raw - static_cast<double>(degrees) * 100.0;
+    if (minutes < 0.0 || minutes >= 60.0) return false;
+    if (latitude && degrees > 90) return false;
+    if (!latitude && degrees > 180) return false;
+
     double signed_deg = static_cast<double>(degrees) + minutes / 60.0;
 
     const char h = hemi.front();
@@ -196,7 +201,7 @@ void parse_mwd(const Sentence& s, TelemetryUpdate& u) {
     double dir = 0.0;
     double speed = 0.0;
     if (parse_double(s.fields.get(0), dir) && parse_double(s.fields.get(4), speed)) {
-        u.has_wind_true = true;
+        u.has_wind_direction = true;
         u.twd_deg = wrap360(dir);
         u.tws_kt = speed;
     }

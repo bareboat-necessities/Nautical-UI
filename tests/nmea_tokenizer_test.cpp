@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 #include <string>
 
@@ -10,8 +11,6 @@ using namespace helm::nmea;
 int main() {
     {
         Sentence s;
-        const std::string line = "$GPRMC,143212.00,A,4043.1234,N,07400.5678,W,6.4,048.2,020626,,,A*62";
-        // Checksum above may not match after editing test payload. Use no-checksum path for tokenizer structure test.
         const std::string no_checksum = "$GPRMC,143212.00,A,4043.1234,N,07400.5678,W,6.4,048.2,020626,,,A";
         assert(tokenize_nmea0183(no_checksum, s));
         assert(s.start == '$');
@@ -30,6 +29,8 @@ int main() {
         assert(r.update.has_position);
         assert(r.update.has_sog);
         assert(r.update.has_cog);
+        assert(std::fabs(r.update.latitude_deg - 40.7187233333) < 1e-9);
+        assert(std::fabs(r.update.longitude_deg - (-74.0094633333)) < 1e-9);
         assert(r.update.sog_kt > 6.3 && r.update.sog_kt < 6.5);
     }
 

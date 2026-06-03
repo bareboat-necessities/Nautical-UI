@@ -77,7 +77,8 @@ struct TelemetryUpdate {
     double awa_deg{};
     double aws_kt{};
 
-    bool has_wind_true{false};
+    bool has_wind_true{false};       // true wind angle + speed from MWV,T
+    bool has_wind_direction{false};  // true wind direction + speed from MWD
     double twa_deg{};
     double tws_kt{};
     double twd_deg{};

@@ -93,3 +93,29 @@ src/telemetry/      latest readings and timestamps
 src/graphics/       theme and scalable icons
 src/nmea/           compact NMEA tokenizer/parser
 ```
+
+## Live NMEA 0183 TCP input
+
+Dummy telemetry is still the default:
+
+```bash
+./helm-ui
+```
+
+To read a TCP NMEA 0183 stream:
+
+```bash
+./helm-ui --source tcp-nmea0183://127.0.0.1:10110
+```
+
+Also supported:
+
+```bash
+./helm-ui --source=tcp-nmea0183://127.0.0.1:10110
+./helm-ui --nmea-tcp=127.0.0.1:10110
+HELM_UI_NMEA_SOURCE=tcp-nmea0183://127.0.0.1:10110 ./helm-ui
+```
+
+The NMEA design is intentionally compact: one tokenizer, one parser entry point, and private helpers in `src/nmea/Nmea0183.cpp`. There are no message-type decoder headers.
+
+See `docs/PHASE2_PHASE3.md` for details.

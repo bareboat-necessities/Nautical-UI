@@ -9,6 +9,28 @@
 #include "telemetry/Format.h"
 
 namespace helm::shell {
+namespace {
+
+graphics::IconState icon_state_for_quality(telemetry::SensorQuality q, graphics::IconState good = graphics::IconState::Ok) {
+    switch (q) {
+        case telemetry::SensorQuality::Good: return good;
+        case telemetry::SensorQuality::Warning: return graphics::IconState::Warning;
+        case telemetry::SensorQuality::Alarm: return graphics::IconState::Danger;
+        case telemetry::SensorQuality::Stale: return graphics::IconState::Warning;
+        case telemetry::SensorQuality::Missing: return graphics::IconState::Disabled;
+    }
+    return graphics::IconState::Disabled;
+}
+
+template <typename T, typename Formatter>
+std::string format_or_dash(const telemetry::TimedValue<T>& tv, Formatter formatter) {
+    if (!tv.has_value()) {
+        return "--";
+    }
+    return formatter(tv.value);
+}
+
+} // namespace
 
 HelmShell::HelmShell()
     : Gtk::Box(Gtk::Orientation::VERTICAL, 8), content_row_(Gtk::Orientation::HORIZONTAL, 8),
@@ -78,37 +100,46 @@ void HelmShell::show_module(const std::string& id) {
 void HelmShell::update(const telemetry::TelemetrySnapshot& snapshot) {
     top_bar_.update(snapshot);
 
-    speed_tile_.set_value(telemetry::format::knots(snapshot.nav.sog_kt.value, 1));
-    speed_tile_.set_subtitle("COG " + telemetry::format::degrees(snapshot.nav.cog_deg.value, 0));
-    speed_tile_.set_state(graphics::IconState::Ok);
+    speed_tile_.set_value(format_or_dash(snapshot.nav.sog_kt, [](double v) { return telemetry::format::knots(v, 1); }));
+    speed_tile_.set_subtitle("COG " + format_or_dash(snapshot.nav.cog_deg, [](double v) { return telemetry::format::degrees(v, 0); }));
+    speed_tile_.set_state(icon_state_for_quality(snapshot.nav.sog_kt.quality));
 
-    depth_tile_.set_value(telemetry::format::meters(snapshot.nav.depth_m.value, 1));
-    depth_tile_.set_subtitle("below transducer");
-    depth_tile_.set_state(snapshot.nav.depth_m.value < 3.0 ? graphics::IconState::Danger : graphics::IconState::Ok);
+    depth_tile_.set_value(format_or_dash(snapshot.nav.depth_m, [](double v) { return telemetry::format::meters(v, 1); }));
+    depth_tile_.set_subtitle(snapshot.nav.depth_m.quality == telemetry::SensorQuality::Stale ? "stale" : "below transducer");
+    if (snapshot.nav.depth_m.has_value() && snapshot.nav.depth_m.value < 3.0) {
+        depth_tile_.set_state(graphics::IconState::Danger);
+    } else {
+        depth_tile_.set_state(icon_state_for_quality(snapshot.nav.depth_m.quality));
+    }
 
-    wind_tile_.set_value(telemetry::format::knots(snapshot.wind.tws_kt.value, 1));
-    wind_tile_.set_subtitle("TWA " + telemetry::format::degrees(snapshot.wind.twa_deg.value, 0));
-    wind_tile_.set_state(graphics::IconState::Ok);
+    wind_tile_.set_value(format_or_dash(snapshot.wind.tws_kt, [](double v) { return telemetry::format::knots(v, 1); }));
+    wind_tile_.set_subtitle("TWA " + format_or_dash(snapshot.wind.twa_deg, [](double v) { return telemetry::format::degrees(v, 0); }));
+    wind_tile_.set_state(icon_state_for_quality(snapshot.wind.tws_kt.quality));
 
-    anchor_tile_.set_value(telemetry::format::meters(snapshot.anchor.distance_m.value, 0));
-    anchor_tile_.set_subtitle("radius " + telemetry::format::meters(snapshot.anchor.radius_m.value, 0));
-    anchor_tile_.set_state(graphics::IconState::Ok);
+    anchor_tile_.set_value(format_or_dash(snapshot.anchor.distance_m, [](double v) { return telemetry::format::meters(v, 0); }));
+    anchor_tile_.set_subtitle("radius " + format_or_dash(snapshot.anchor.radius_m, [](double v) { return telemetry::format::meters(v, 0); }));
+    anchor_tile_.set_state(snapshot.anchor.status == telemetry::AnchorStatus::DragAlarm ? graphics::IconState::Danger : graphics::IconState::Ok);
 
-    ais_tile_.set_value(std::to_string(snapshot.ais.targets.value));
-    ais_tile_.set_subtitle(snapshot.ais.danger_targets.value > 0 ? "DANGER" : "clear");
-    ais_tile_.set_state(snapshot.ais.danger_targets.value > 0 ? graphics::IconState::Danger : graphics::IconState::Ok);
+    ais_tile_.set_value(format_or_dash(snapshot.ais.targets, [](int v) { return std::to_string(v); }));
+    const int danger = snapshot.ais.danger_targets.has_value() ? snapshot.ais.danger_targets.value : 0;
+    ais_tile_.set_subtitle(danger > 0 ? "DANGER" : "clear");
+    ais_tile_.set_state(danger > 0 ? graphics::IconState::Danger : icon_state_for_quality(snapshot.ais.targets.quality));
 
     bilge_tile_.set_value(telemetry::format::bilge_status(snapshot.bilge.status));
-    bilge_tile_.set_subtitle(snapshot.bilge.pump_on.value ? "pump running" : "auto ok");
+    bilge_tile_.set_subtitle(snapshot.bilge.pump_on.has_value() && snapshot.bilge.pump_on.value ? "pump running" : "auto ok");
     bilge_tile_.set_state(snapshot.bilge.status == telemetry::BilgeStatus::Dry ? graphics::IconState::Ok : graphics::IconState::Warning);
 
-    battery_tile_.set_value(telemetry::format::volts(snapshot.electrical.house_voltage_v.value, 1));
-    battery_tile_.set_subtitle(telemetry::format::amps(snapshot.electrical.house_current_a.value, 1));
-    battery_tile_.set_state(snapshot.electrical.house_voltage_v.value < 12.0 ? graphics::IconState::Warning : graphics::IconState::Ok);
+    battery_tile_.set_value(format_or_dash(snapshot.electrical.house_voltage_v, [](double v) { return telemetry::format::volts(v, 1); }));
+    battery_tile_.set_subtitle(format_or_dash(snapshot.electrical.house_current_a, [](double v) { return telemetry::format::amps(v, 1); }));
+    if (snapshot.electrical.house_voltage_v.has_value() && snapshot.electrical.house_voltage_v.value < 12.0) {
+        battery_tile_.set_state(graphics::IconState::Warning);
+    } else {
+        battery_tile_.set_state(icon_state_for_quality(snapshot.electrical.house_voltage_v.quality));
+    }
 
     windlass_tile_.set_value(telemetry::format::windlass_status(snapshot.windlass.status));
-    windlass_tile_.set_subtitle(telemetry::format::meters(snapshot.windlass.chain_deployed_m.value, 0));
-    windlass_tile_.set_state(graphics::IconState::Warning);
+    windlass_tile_.set_subtitle(format_or_dash(snapshot.windlass.chain_deployed_m, [](double v) { return telemetry::format::meters(v, 0); }));
+    windlass_tile_.set_state(snapshot.windlass.status == telemetry::WindlassStatus::Locked ? graphics::IconState::Warning : graphics::IconState::Danger);
 
     for (auto& module : modules_) {
         module->on_telemetry(snapshot);
