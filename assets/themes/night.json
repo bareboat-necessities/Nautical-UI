@@ -1,0 +1,14 @@
+{
+  "name": "Night Helm",
+  "background": "#06121c",
+  "panel": "#0a1b28",
+  "panel2": "#10283a",
+  "border": "#2f5f7f",
+  "text": "#f2f7ff",
+  "muted": "#91a9b8",
+  "ok": "#5ee06f",
+  "caution": "#ffd34a",
+  "warning": "#ff8a2a",
+  "danger": "#ff3b30",
+  "active": "#1f9cff"
+}
