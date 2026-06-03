@@ -30,18 +30,57 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "HELM_UI_BUILD_TESTS": "ON"
       }
+    },
+    {
+      "name": "windows-msys2-ucrt64-release",
+      "displayName": "Windows MSYS2 UCRT64 Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/windows-ucrt64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "HELM_UI_BUILD_TESTS": "ON"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "linux-debug", "configurePreset": "linux-debug" },
-    { "name": "linux-release", "configurePreset": "linux-release" },
-    { "name": "windows-msys2-ucrt64-debug", "configurePreset": "windows-msys2-ucrt64-debug" }
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release"
+    },
+    {
+      "name": "windows-msys2-ucrt64-debug",
+      "configurePreset": "windows-msys2-ucrt64-debug"
+    },
+    {
+      "name": "windows-msys2-ucrt64-release",
+      "configurePreset": "windows-msys2-ucrt64-release"
+    }
   ],
   "testPresets": [
     {
       "name": "linux-debug",
       "configurePreset": "linux-debug",
-      "output": { "outputOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msys2-ucrt64-release",
+      "configurePreset": "windows-msys2-ucrt64-release",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }
