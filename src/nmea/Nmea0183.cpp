@@ -289,17 +289,17 @@ void parse_vdo(const Sentence& s, ParserState& state, TelemetryUpdate& u) {
 }
 
 constexpr std::array<SentenceTypeDefinition, 11> KnownSentenceTypes{{
-    {SentenceType::Rmc, "RMC", parse_rmc},
-    {SentenceType::Gga, "GGA", parse_gga},
-    {SentenceType::Vtg, "VTG", parse_vtg},
-    {SentenceType::Hdt, "HDT", parse_hdt},
-    {SentenceType::Hdg, "HDG", parse_hdg},
-    {SentenceType::Mwv, "MWV", parse_mwv},
-    {SentenceType::Mwd, "MWD", parse_mwd},
-    {SentenceType::Dpt, "DPT", parse_dpt},
     {SentenceType::Dbt, "DBT", parse_dbt},
+    {SentenceType::Dpt, "DPT", parse_dpt},
+    {SentenceType::Gga, "GGA", parse_gga},
+    {SentenceType::Hdg, "HDG", parse_hdg},
+    {SentenceType::Hdt, "HDT", parse_hdt},
+    {SentenceType::Mwd, "MWD", parse_mwd},
+    {SentenceType::Mwv, "MWV", parse_mwv},
+    {SentenceType::Rmc, "RMC", parse_rmc},
     {SentenceType::Vdm, "VDM", parse_vdm},
     {SentenceType::Vdo, "VDO", parse_vdo},
+    {SentenceType::Vtg, "VTG", parse_vtg},
 }};
 
 

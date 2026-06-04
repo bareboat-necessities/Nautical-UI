@@ -15,6 +15,9 @@ int main() {
     {
         const auto known = known_sentence_types();
         assert(known.size() == 11);
+        for (std::size_t i = 1; i < known.size(); ++i) {
+            assert(known[i - 1].formatter < known[i].formatter);
+        }
         assert(find_sentence_type("RMC") != nullptr);
         assert(find_sentence_type("RMC")->type == SentenceType::Rmc);
         assert(find_sentence_type("RMC")->formatter == std::string_view{"RMC"});

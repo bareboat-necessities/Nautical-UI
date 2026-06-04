@@ -99,17 +99,17 @@ struct TelemetryUpdate {
 using SentenceParser = void (*)(const Sentence& sentence, ParserState& state, TelemetryUpdate& update);
 
 enum class SentenceType {
-    Rmc,
-    Gga,
-    Vtg,
-    Hdt,
-    Hdg,
-    Mwv,
-    Mwd,
-    Dpt,
     Dbt,
+    Dpt,
+    Gga,
+    Hdg,
+    Hdt,
+    Mwd,
+    Mwv,
+    Rmc,
     Vdm,
-    Vdo
+    Vdo,
+    Vtg
 };
 
 struct SentenceTypeDefinition {
