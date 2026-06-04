@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -94,6 +95,29 @@ struct TelemetryUpdate {
     bool ais_own_vessel{false};
 };
 
+
+using SentenceParser = void (*)(const Sentence& sentence, ParserState& state, TelemetryUpdate& update);
+
+enum class SentenceType {
+    Dbt,
+    Dpt,
+    Gga,
+    Hdg,
+    Hdt,
+    Mwd,
+    Mwv,
+    Rmc,
+    Vdm,
+    Vdo,
+    Vtg
+};
+
+struct SentenceTypeDefinition {
+    SentenceType type;
+    std::string_view formatter;
+    SentenceParser parse;
+};
+
 struct ParseResult {
     ParseStatus status{ParseStatus::Malformed};
     TelemetryUpdate update{};
@@ -101,6 +125,11 @@ struct ParseResult {
 };
 
 [[nodiscard]] bool tokenize_nmea0183(std::string_view line, Sentence& out);
+
+
+[[nodiscard]] std::span<const SentenceTypeDefinition> known_sentence_types() noexcept;
+
+[[nodiscard]] const SentenceTypeDefinition* find_sentence_type(std::string_view formatter) noexcept;
 
 [[nodiscard]] ParseResult parse_nmea0183_line(
     std::string_view line,
