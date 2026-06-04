@@ -92,7 +92,7 @@ bool is_status_active(std::string_view s) {
     return !s.empty() && (s.front() == 'A' || s.front() == 'D');
 }
 
-void parse_rmc(const Sentence& s, TelemetryUpdate& u) {
+void parse_rmc(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // RMC: time,status,lat,N/S,lon,E/W,sog,cog,date,...
     if (!is_status_active(s.fields.get(1))) return;
 
@@ -116,7 +116,7 @@ void parse_rmc(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_gga(const Sentence& s, TelemetryUpdate& u) {
+void parse_gga(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // GGA: time,lat,N/S,lon,E/W,fix_quality,num_sv,hdop,alt,...
     int fix = 0;
     if (parse_int(s.fields.get(5), fix)) {
@@ -137,7 +137,7 @@ void parse_gga(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_vtg(const Sentence& s, TelemetryUpdate& u) {
+void parse_vtg(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // VTG: cog_true,T,cog_mag,M,sog_knots,N,sog_kmh,K,mode
     double v = 0.0;
     if (parse_double(s.fields.get(0), v)) {
@@ -150,7 +150,7 @@ void parse_vtg(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_hdt(const Sentence& s, TelemetryUpdate& u) {
+void parse_hdt(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     double v = 0.0;
     if (parse_double(s.fields.get(0), v)) {
         u.has_heading_true = true;
@@ -158,7 +158,7 @@ void parse_hdt(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_hdg(const Sentence& s, TelemetryUpdate& u) {
+void parse_hdg(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     double v = 0.0;
     if (parse_double(s.fields.get(0), v)) {
         u.has_heading_mag = true;
@@ -166,7 +166,7 @@ void parse_hdg(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_mwv(const Sentence& s, TelemetryUpdate& u) {
+void parse_mwv(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // MWV: angle,reference(R/T),speed,units,status
     if (!is_status_active(s.fields.get(4))) return;
 
@@ -196,7 +196,7 @@ void parse_mwv(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_mwd(const Sentence& s, TelemetryUpdate& u) {
+void parse_mwd(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // MWD: dir_true,T,dir_mag,M,speed_knots,N,speed_mps,M
     double dir = 0.0;
     double speed = 0.0;
@@ -207,7 +207,7 @@ void parse_mwd(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_dpt(const Sentence& s, TelemetryUpdate& u) {
+void parse_dpt(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // DPT: depth,offset,range
     double depth = 0.0;
     double offset = 0.0;
@@ -218,7 +218,7 @@ void parse_dpt(const Sentence& s, TelemetryUpdate& u) {
     }
 }
 
-void parse_dbt(const Sentence& s, TelemetryUpdate& u) {
+void parse_dbt(const Sentence& s, ParserState&, TelemetryUpdate& u) {
     // DBT: feet,f,meters,M,fathoms,F
     double depth_m = 0.0;
     if (parse_double(s.fields.get(2), depth_m)) {
@@ -280,6 +280,29 @@ void parse_vdm_vdo(const Sentence& s, ParserState& state, TelemetryUpdate& u, bo
     }
 }
 
+void parse_vdm(const Sentence& s, ParserState& state, TelemetryUpdate& u) {
+    parse_vdm_vdo(s, state, u, false);
+}
+
+void parse_vdo(const Sentence& s, ParserState& state, TelemetryUpdate& u) {
+    parse_vdm_vdo(s, state, u, true);
+}
+
+constexpr std::array<SentenceTypeDefinition, 11> KnownSentenceTypes{{
+    {SentenceType::Rmc, "RMC", parse_rmc},
+    {SentenceType::Gga, "GGA", parse_gga},
+    {SentenceType::Vtg, "VTG", parse_vtg},
+    {SentenceType::Hdt, "HDT", parse_hdt},
+    {SentenceType::Hdg, "HDG", parse_hdg},
+    {SentenceType::Mwv, "MWV", parse_mwv},
+    {SentenceType::Mwd, "MWD", parse_mwd},
+    {SentenceType::Dpt, "DPT", parse_dpt},
+    {SentenceType::Dbt, "DBT", parse_dbt},
+    {SentenceType::Vdm, "VDM", parse_vdm},
+    {SentenceType::Vdo, "VDO", parse_vdo},
+}};
+
+
 } // namespace
 
 void ParserState::reset_ais() {
@@ -338,6 +361,18 @@ bool tokenize_nmea0183(std::string_view line, Sentence& out) {
     return true;
 }
 
+std::span<const SentenceTypeDefinition> known_sentence_types() noexcept {
+    return KnownSentenceTypes;
+}
+
+const SentenceTypeDefinition* find_sentence_type(std::string_view formatter) noexcept {
+    const auto known = known_sentence_types();
+    const auto it = std::find_if(known.begin(), known.end(), [formatter](const SentenceTypeDefinition& candidate) {
+        return candidate.formatter == formatter;
+    });
+    return it == known.end() ? nullptr : &*it;
+}
+
 ParseResult parse_nmea0183_line(std::string_view line, ParserState& state, SteadyTime now) {
     ParseResult result;
     result.update.timestamp = now;
@@ -363,36 +398,15 @@ ParseResult parse_nmea0183_line(std::string_view line, ParserState& state, Stead
     }
 
     result.sentence = s;
-    const auto type = s.formatter;
 
-    if (type == "RMC") {
-        parse_rmc(s, result.update);
-    } else if (type == "GGA") {
-        parse_gga(s, result.update);
-    } else if (type == "VTG") {
-        parse_vtg(s, result.update);
-    } else if (type == "HDT") {
-        parse_hdt(s, result.update);
-    } else if (type == "HDG") {
-        parse_hdg(s, result.update);
-    } else if (type == "MWV") {
-        parse_mwv(s, result.update);
-    } else if (type == "MWD") {
-        parse_mwd(s, result.update);
-    } else if (type == "DPT") {
-        parse_dpt(s, result.update);
-    } else if (type == "DBT") {
-        parse_dbt(s, result.update);
-    } else if (type == "VDM") {
-        parse_vdm_vdo(s, state, result.update, false);
-    } else if (type == "VDO") {
-        parse_vdm_vdo(s, state, result.update, true);
+    if (const auto* sentence_type = find_sentence_type(s.formatter)) {
+        sentence_type->parse(s, state, result.update);
+        result.status = ParseStatus::Ok;
     } else {
+        // Unknown sentences are still tokenized into result.sentence for callers that
+        // want generic field access, but they do not produce telemetry updates.
         result.status = ParseStatus::Unsupported;
-        return result;
     }
-
-    result.status = ParseStatus::Ok;
     return result;
 }
 

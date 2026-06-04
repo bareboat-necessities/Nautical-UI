@@ -4,12 +4,23 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <string_view>
 
 using namespace helm::nmea;
 
 int main() {
     ParserState state;
     const auto now = std::chrono::steady_clock::now();
+
+    {
+        const auto known = known_sentence_types();
+        assert(known.size() == 11);
+        assert(find_sentence_type("RMC") != nullptr);
+        assert(find_sentence_type("RMC")->type == SentenceType::Rmc);
+        assert(find_sentence_type("RMC")->formatter == std::string_view{"RMC"});
+        assert(find_sentence_type("RMC")->parse != nullptr);
+        assert(find_sentence_type("XXX") == nullptr);
+    }
 
     {
         const auto r = parse_nmea0183_line("$IIMWV,42.0,T,14.8,N,A", state, now);
@@ -46,6 +57,10 @@ int main() {
     {
         const auto r = parse_nmea0183_line("$GPXXX,1,2,3", state, now);
         assert(r.status == ParseStatus::Unsupported);
+        assert(r.sentence.talker == "GP");
+        assert(r.sentence.formatter == "XXX");
+        assert(r.sentence.fields.get(0) == "1");
+        assert(r.sentence.fields.get(2) == "3");
     }
 
     std::cout << "nmea-parser-test passed\n";
